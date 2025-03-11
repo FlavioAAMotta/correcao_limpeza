@@ -52,15 +52,36 @@ function handleFileSelect(e) {
     handleFile(file);
 }
 
+function showSpinner() {
+    const spinner = document.createElement('div');
+    spinner.className = 'spinner-container';
+    spinner.innerHTML = '<div class="spinner"></div>';
+    document.body.appendChild(spinner);
+}
+
+function hideSpinner() {
+    const spinner = document.querySelector('.spinner-container');
+    if (spinner) {
+        spinner.remove();
+    }
+}
+
 function handleFile(file) {
     if (file.type !== 'text/csv') {
         alert('Por favor, selecione um arquivo CSV válido.');
         return;
     }
 
+    showSpinner();
+
     Papa.parse(file, {
         complete: function(results) {
             analisarDados(results.data);
+            hideSpinner();
+        },
+        error: function(error) {
+            hideSpinner();
+            alert('Erro ao processar o arquivo: ' + error.message);
         },
         header: true
     });
@@ -161,59 +182,63 @@ function exibirResultados(problemas, totalRegistros) {
     const scoreDisplay = document.getElementById('scoreDisplay');
     const problemsList = document.getElementById('problemsList');
 
-    // Valores máximos esperados (pior caso)
+    // Valores máximos esperados (pior caso) - ajustados para serem mais rigorosos
     const maximosEsperados = {
         valores_nulos: {
-            total: 20000,  // Máximo de valores nulos
-            colunas: 17    // Número máximo de colunas com nulos
+            total: 15000,  // Reduzido para ser mais rigoroso
+            colunas: 17    // Mantido igual pois é o número real de colunas
         },
-        duplicatas: 5100,  // Máximo de duplicatas
+        duplicatas: 5000,  // Ajustado
         espacos_extras: {
-            total: 12000   // Máximo de espaços extras
+            total: 11000   // Ajustado
         },
         formatacao_numerica: {
-            total: 370000  // Máximo de problemas de formatação
+            total: 350000  // Ajustado
         },
         valores_absurdos: {
-            frete_negativo: 4000,
-            frete_alto: 2000
+            frete_negativo: 3500,
+            frete_alto: 1700
         },
-        produtos_problematicos: 70,  // Máximo de produtos problemáticos
-        ceps_invalidos: 60          // Máximo de CEPs inválidos
+        produtos_problematicos: 65,  // Ajustado
+        ceps_invalidos: 55          // Ajustado
     };
 
-    // Calcular pontuação
+    // Calcular pontuação com pesos ajustados
     let pontuacao = 100;
     
-    // Calcular penalidades proporcionais aos máximos
-    // Valores nulos
+    // Valores nulos (35% do total)
     const totalNulos = Object.values(problemas.valores_nulos).reduce((a, b) => a + b, 0);
     const colunasComNulos = Object.keys(problemas.valores_nulos).length;
-    pontuacao -= (totalNulos / maximosEsperados.valores_nulos.total) * 20;
+    pontuacao -= (totalNulos / maximosEsperados.valores_nulos.total) * 25;  // Aumentado
     pontuacao -= (colunasComNulos / maximosEsperados.valores_nulos.colunas) * 10;
 
-    // Duplicatas
+    // Duplicatas (15%)
     pontuacao -= (problemas.duplicatas / maximosEsperados.duplicatas) * 15;
 
-    // Espaços extras
+    // Espaços extras (10%)
     const totalEspacos = Object.values(problemas.espacos_extras).reduce((a, b) => a + b, 0);
     pontuacao -= (totalEspacos / maximosEsperados.espacos_extras.total) * 10;
 
-    // Formatação numérica
+    // Formatação numérica (15%)
     const totalFormatacao = Object.values(problemas.formatacao_numerica).reduce((a, b) => a + b, 0);
     pontuacao -= (totalFormatacao / maximosEsperados.formatacao_numerica.total) * 15;
 
-    // Valores absurdos
+    // Valores absurdos (15% total)
     const freteNegativo = problemas.valores_absurdos.frete_negativo || 0;
     const freteAlto = problemas.valores_absurdos.frete_alto || 0;
-    pontuacao -= (freteNegativo / maximosEsperados.valores_absurdos.frete_negativo) * 10;
-    pontuacao -= (freteAlto / maximosEsperados.valores_absurdos.frete_alto) * 10;
+    pontuacao -= (freteNegativo / maximosEsperados.valores_absurdos.frete_negativo) * 7.5;
+    pontuacao -= (freteAlto / maximosEsperados.valores_absurdos.frete_alto) * 7.5;
 
-    // Produtos problemáticos
+    // Produtos problemáticos (5%)
     pontuacao -= (problemas.produtos_problematicos.length / maximosEsperados.produtos_problematicos) * 5;
 
-    // CEPs inválidos
+    // CEPs inválidos (5%)
     pontuacao -= (problemas.ceps_invalidos.length / maximosEsperados.ceps_invalidos) * 5;
+
+    // Aplicar fator de correção adicional para casos extremos
+    if (colunasComNulos >= 15 && totalNulos > 10000) {
+        pontuacao *= 0.5; // Reduz pela metade se houver muitos problemas graves
+    }
 
     pontuacao = Math.max(0, Math.min(100, pontuacao));
 
