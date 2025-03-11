@@ -161,29 +161,59 @@ function exibirResultados(problemas, totalRegistros) {
     const scoreDisplay = document.getElementById('scoreDisplay');
     const problemsList = document.getElementById('problemsList');
 
-    // Calcular pontuação
-    let pontuacao = 100;
-    const penalidades = {
-        valores_nulos: 2,
-        duplicatas: 2,
-        espacos_extras: 1,
-        formatacao_numerica: 2,
-        valores_absurdos: 3,
-        produtos_problematicos: 2,
-        ceps_invalidos: 2
+    // Valores máximos esperados (pior caso)
+    const maximosEsperados = {
+        valores_nulos: {
+            total: 20000,  // Máximo de valores nulos
+            colunas: 17    // Número máximo de colunas com nulos
+        },
+        duplicatas: 5100,  // Máximo de duplicatas
+        espacos_extras: {
+            total: 12000   // Máximo de espaços extras
+        },
+        formatacao_numerica: {
+            total: 370000  // Máximo de problemas de formatação
+        },
+        valores_absurdos: {
+            frete_negativo: 4000,
+            frete_alto: 2000
+        },
+        produtos_problematicos: 70,  // Máximo de produtos problemáticos
+        ceps_invalidos: 60          // Máximo de CEPs inválidos
     };
 
-    // Aplicar penalidades
-    Object.entries(problemas).forEach(([categoria, quantidade]) => {
-        if (typeof quantidade === 'object') {
-            const total = Object.values(quantidade).reduce((a, b) => a + b, 0);
-            pontuacao -= (total / totalRegistros) * 100 * penalidades[categoria];
-        } else if (Array.isArray(quantidade)) {
-            pontuacao -= (quantidade.length / totalRegistros) * 100 * penalidades[categoria];
-        } else {
-            pontuacao -= (quantidade / totalRegistros) * 100 * penalidades[categoria];
-        }
-    });
+    // Calcular pontuação
+    let pontuacao = 100;
+    
+    // Calcular penalidades proporcionais aos máximos
+    // Valores nulos
+    const totalNulos = Object.values(problemas.valores_nulos).reduce((a, b) => a + b, 0);
+    const colunasComNulos = Object.keys(problemas.valores_nulos).length;
+    pontuacao -= (totalNulos / maximosEsperados.valores_nulos.total) * 20;
+    pontuacao -= (colunasComNulos / maximosEsperados.valores_nulos.colunas) * 10;
+
+    // Duplicatas
+    pontuacao -= (problemas.duplicatas / maximosEsperados.duplicatas) * 15;
+
+    // Espaços extras
+    const totalEspacos = Object.values(problemas.espacos_extras).reduce((a, b) => a + b, 0);
+    pontuacao -= (totalEspacos / maximosEsperados.espacos_extras.total) * 10;
+
+    // Formatação numérica
+    const totalFormatacao = Object.values(problemas.formatacao_numerica).reduce((a, b) => a + b, 0);
+    pontuacao -= (totalFormatacao / maximosEsperados.formatacao_numerica.total) * 15;
+
+    // Valores absurdos
+    const freteNegativo = problemas.valores_absurdos.frete_negativo || 0;
+    const freteAlto = problemas.valores_absurdos.frete_alto || 0;
+    pontuacao -= (freteNegativo / maximosEsperados.valores_absurdos.frete_negativo) * 10;
+    pontuacao -= (freteAlto / maximosEsperados.valores_absurdos.frete_alto) * 10;
+
+    // Produtos problemáticos
+    pontuacao -= (problemas.produtos_problematicos.length / maximosEsperados.produtos_problematicos) * 5;
+
+    // CEPs inválidos
+    pontuacao -= (problemas.ceps_invalidos.length / maximosEsperados.ceps_invalidos) * 5;
 
     pontuacao = Math.max(0, Math.min(100, pontuacao));
 
