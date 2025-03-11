@@ -250,34 +250,68 @@ function exibirResultados(problemas, totalRegistros) {
     // Limpar lista de problemas anterior
     problemsList.innerHTML = '';
 
-    // Exibir problemas encontrados
-    Object.entries(problemas).forEach(([categoria, quantidade]) => {
-        if ((typeof quantidade === 'object' && Object.keys(quantidade).length > 0) ||
-            (Array.isArray(quantidade) && quantidade.length > 0) ||
-            (!isNaN(quantidade) && quantidade > 0)) {
-            
-            const problemDiv = document.createElement('div');
-            problemDiv.className = 'problem-item';
-            
-            const title = document.createElement('h4');
-            title.textContent = categoria.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            problemDiv.appendChild(title);
+    // Mapeamento de nomes mais amigáveis para as categorias
+    const nomesCategorias = {
+        valores_nulos: 'Dados Faltantes',
+        duplicatas: 'Registros Duplicados',
+        espacos_extras: 'Problemas de Formatação (Espaços)',
+        formatacao_numerica: 'Problemas de Formatação (Números)',
+        valores_absurdos: 'Valores Inconsistentes',
+        produtos_problematicos: 'Problemas de Padronização (Produtos)',
+        ceps_invalidos: 'Problemas de Validação (CEP)'
+    };
 
-            const details = document.createElement('div');
-            if (typeof quantidade === 'object' && !Array.isArray(quantidade)) {
-                Object.entries(quantidade).forEach(([key, value]) => {
-                    details.innerHTML += `<p>${key}: ${value} ocorrências</p>`;
-                });
-            } else if (Array.isArray(quantidade)) {
-                details.innerHTML = `<p>Itens problemáticos encontrados: ${quantidade.length}</p>`;
-                details.innerHTML += `<ul>${quantidade.map(item => `<li>${item}</li>`).join('')}</ul>`;
-            } else {
-                details.innerHTML = `<p>${quantidade} ocorrências</p>`;
-            }
-            problemDiv.appendChild(details);
-            problemsList.appendChild(problemDiv);
+    // Criar um resumo dos problemas
+    const problemasEncontrados = [];
+
+    Object.entries(problemas).forEach(([categoria, quantidade]) => {
+        let temProblema = false;
+
+        if (typeof quantidade === 'object' && !Array.isArray(quantidade)) {
+            temProblema = Object.keys(quantidade).length > 0;
+        } else if (Array.isArray(quantidade)) {
+            temProblema = quantidade.length > 0;
+        } else {
+            temProblema = quantidade > 0;
+        }
+
+        if (temProblema) {
+            problemasEncontrados.push(nomesCategorias[categoria]);
         }
     });
+
+    // Exibir resumo
+    if (problemasEncontrados.length > 0) {
+        const resumoDiv = document.createElement('div');
+        resumoDiv.className = 'problem-item';
+        
+        const title = document.createElement('h4');
+        title.textContent = 'Tipos de Problemas Encontrados';
+        resumoDiv.appendChild(title);
+
+        const lista = document.createElement('ul');
+        lista.style.marginTop = '1rem';
+        problemasEncontrados.forEach(problema => {
+            const item = document.createElement('li');
+            item.textContent = problema;
+            item.style.marginBottom = '0.5rem';
+            lista.appendChild(item);
+        });
+        resumoDiv.appendChild(lista);
+
+        const dica = document.createElement('p');
+        dica.className = 'mt-3 text-muted';
+        dica.style.fontSize = '0.9rem';
+        dica.innerHTML = 'Dica: Analise seu dataset para identificar onde estes problemas estão ocorrendo e como corrigi-los.';
+        resumoDiv.appendChild(dica);
+
+        problemsList.appendChild(resumoDiv);
+    } else {
+        const sucessoDiv = document.createElement('div');
+        sucessoDiv.className = 'alert alert-success';
+        sucessoDiv.textContent = 'Parabéns! Não foram encontrados problemas significativos no seu dataset.';
+        problemsList.appendChild(sucessoDiv);
+    }
 
     resultsDiv.classList.remove('d-none');
 } 
